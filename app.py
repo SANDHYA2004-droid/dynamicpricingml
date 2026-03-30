@@ -1,17 +1,14 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
+import joblib
 
-# Load dataset
-df = pd.read_csv("dynamic_pricing.csv")
+# Page config
+st.set_page_config(page_title="Dynamic Pricing System", layout="centered")
 
-# Train model
-X = df[['Demand', 'Competitor_Price', 'Time']]
-y = df['Price']
-
-model = RandomForestRegressor()
-model.fit(X, y)
+# Load trained model
+model = joblib.load("pricing_model.pkl")
 
 # Business Logic Function
 def dynamic_price(demand, competitor_price, time):
@@ -31,26 +28,33 @@ def dynamic_price(demand, competitor_price, time):
     return round(base_price, 2)
 
 # Explanation Function
-def explain_price(demand, competitor_price, time):
+def explain_price(demand, competitor_price, time, predicted_price):
     reasons = []
     
     if demand > 80:
         reasons.append("High demand → price increased")
     elif demand < 30:
         reasons.append("Low demand → discount applied")
+    else:
+        reasons.append("Moderate demand → stable pricing")
         
     if time == 1:
         reasons.append("Peak time → price increased")
+    else:
+        reasons.append("Normal time → standard pricing")
         
-    if competitor_price < 100:
-        reasons.append("Competitor price low → adjusted price")
+    if competitor_price < predicted_price:
+        reasons.append("Competitor price is lower → adjusted price to stay competitive")
+    else:
+        reasons.append("Competitor price is higher → price optimized for profit")
         
     return reasons
 
 # UI
 st.title("💰 Dynamic Pricing System")
+st.markdown("### Smart ML-based price optimization")
 
-st.write("Enter values to predict optimal price")
+st.write("Adjust inputs to predict optimal price")
 
 # Inputs
 demand = st.slider("Demand", 0, 100, 50)
@@ -59,14 +63,31 @@ time = st.selectbox("Time", ["Normal", "Peak"])
 
 time_val = 1 if time == "Peak" else 0
 
-# Button
+# Prediction
 if st.button("Predict Price"):
     price = dynamic_price(demand, competitor_price, time_val)
     
     st.success(f"💰 Suggested Price: ₹{price}")
     
-    st.subheader("Explanation:")
-    reasons = explain_price(demand, competitor_price, time_val)
+    # Explanation
+    st.subheader("🧠 Explanation")
+    reasons = explain_price(demand, competitor_price, time_val, price)
     
     for r in reasons:
         st.write("•", r)
+    
+    # Graph
+    st.subheader("📊 Demand vs Predicted Price")
+    
+    sample_demand = list(range(10, 101, 10))
+    predicted_prices = [
+        dynamic_price(d, competitor_price, time_val) for d in sample_demand
+    ]
+    
+    plt.figure()
+    plt.plot(sample_demand, predicted_prices)
+    plt.xlabel("Demand")
+    plt.ylabel("Price")
+    plt.title("Demand vs Predicted Price")
+    
+    st.pyplot(plt)
